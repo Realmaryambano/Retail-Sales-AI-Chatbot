@@ -358,9 +358,8 @@ user_query = st.chat_input('Type a question, like "Which store sold the most on 
 if st.session_state.active_query:
     user_query = st.session_state.active_query
     st.session_state.active_query = None
-
 # ──────────────────────────────────────────────────────────────────────────
-# 9. AI AGENT REASONING & EXECUTION ENGINE (EXACT MATCHING & RESILIENT)
+# 9. AI AGENT REASONING & EXECUTION ENGINE (MODEL FALLBACK & RESILIENT)
 # ──────────────────────────────────────────────────────────────────────────
 if user_query:
     st.session_state.messages.append({"role": "user", "content": user_query})
@@ -403,10 +402,24 @@ if user_query:
                 User's question: "{user_query}"
                 """
 
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=prompt
-                )
+                # Automatic model fallback list to match whichever model is available on your API key
+                models_to_try = ['gemini-3.5-flash','gemini-3.0-flash','gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash']
+                response = None
+                last_error = None
+
+                for m in models_to_try:
+                    try:
+                        response = client.models.generate_content(
+                            model=m,
+                            contents=prompt
+                        )
+                        break
+                    except Exception as err:
+                        last_error = err
+                        continue
+
+                if response is None:
+                    raise RuntimeError(f"All model attempts failed. Last error: {str(last_error)}")
 
                 raw_text = response.text
                 if "```python" in raw_text:
@@ -428,9 +441,15 @@ if user_query:
                 elif isinstance(result, (pd.DataFrame, pd.Series)):
                     display_df = result.to_frame() if isinstance(result, pd.Series) else result
                     st.dataframe(display_df, use_container_width=True)
+                    
+                    try:
+                        msg_content = display_df.to_markdown()
+                    except Exception:
+                        msg_content = display_df.to_string()
+
                     st.session_state.messages.append({
                         "role": "assistant",
-                        "content": display_df.to_markdown() if hasattr(display_df, "to_markdown") else str(display_df),
+                        "content": msg_content,
                     })
                 elif isinstance(result, (int, float)):
                     if isinstance(result, float):
@@ -450,6 +469,7 @@ if user_query:
             except Exception as e:
                 friendly_msg = "Sorry, I couldn't work that out. Could you try asking it in a simpler way — for example, mention a store name, a date, or a product type clearly?"
                 st.markdown(friendly_msg)
-                with st.expander("Technical details (for support team)"):
-                    st.code(str(e))
+                with st.expander("Technical details (for support team)", expanded=False):
+                    st.error(f"Error caught: {type(e).__name__}: {str(e)}")
+                    st.code(code_block if 'code_block' in locals() else "No code generated yet.")
                 st.session_state.messages.append({"role": "assistant", "content": friendly_msg})
