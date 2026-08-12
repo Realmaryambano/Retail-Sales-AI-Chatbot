@@ -212,12 +212,8 @@ st.markdown("""
 # ──────────────────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
-    # Try the exact expected name first, then fall back to any .xlsx file
-    # sitting next to this script — avoids breakage from small filename
-    # differences (spaces vs underscores, date range changes, etc.)
     candidates = [
-        "testing - Copy.xlsx",
-        
+        "sales_july_1_to_august_10_2026.xlsx",
     ]
     for name in candidates:
         if os.path.exists(name):
@@ -287,8 +283,8 @@ with st.sidebar:
         st.markdown(f"**{df['Store_Name'].nunique():,}** stores")
     if "Transact_Date" in df.columns:
         try:
-            dmin = pd.to_datetime(df["Transact_Date"]).min().strftime("%d %b")
-            dmax = pd.to_datetime(df["Transact_Date"]).max().strftime("%d %b %Y")
+            dmin = pd.to_datetime(df["Transact_Date"], dayfirst=True, errors='coerce').min().strftime("%d %b")
+            dmax = pd.to_datetime(df["Transact_Date"], dayfirst=True, errors='coerce').max().strftime("%d %b %Y")
             st.markdown(f"**Covers:** {dmin} – {dmax}")
         except Exception:
             pass
@@ -375,10 +371,9 @@ if user_query:
         with st.spinner("Looking into it…"):
             try:
                 # --- PRE-PROCESSING NORMALIZATION ---
-                df['Transact_Date'] = pd.to_datetime(df['Transact_Date'])
+                df['Transact_Date'] = pd.to_datetime(df['Transact_Date'], dayfirst=True, errors='coerce')
 
-                # Create clean lookup versions of store names (fixes case,
-                # extra spaces, and hidden characters like non-breaking spaces)
+                # Create clean lookup versions of store names (fixes case, extra spaces, etc.)
                 df['Store_Name_Clean'] = (
                     df['Store_Name'].astype(str)
                     .str.upper()
@@ -388,46 +383,28 @@ if user_query:
                 )
 
                 prompt = f"""
-                You are a retail data analyst. You have a pandas DataFrame named `df` with sales data
-                from stores in Pakistan. All money values are in PKR (Pakistani Rupees) — never treat
-                them as US dollars or any other currency, and never convert them.
+                You are a retail data analyst. You have a pandas DataFrame named `df` with sales data from stores in Pakistan. All money values are in PKR (Pakistani Rupees).
 
                 The columns are: {list(df.columns)}
 
-                IMPORTANT DATA FACTS:
-                - `Net_Sale` is the actual amount received in PKR, after discounts. Use this for "sales"
-                  or "revenue" questions unless the user clearly asks for something else (like gross
-                  amount or discount).
-                - Some rows have NEGATIVE Quantity and Net_Sale — these are returns/refunds, not errors.
-                  Include them in totals by default (a store's true net sales already accounts for
-                  returns). Only exclude them if the user specifically asks to ignore returns/refunds.
-                - `Store_Name_Clean` is an uppercase, whitespace-cleaned version of `Store_Name`. Always
-                  filter on `Store_Name_Clean`, not the raw `Store_Name` column.
-                - The user may write store names, product names, or dates with typos, shorthand,
-                  abbreviations, or in Roman Urdu/English mix. Do your best to match their intent to the
-                  closest real value in the data.
-                - If the user names one specific, exact store (e.g. "HOB LUCKY 1 MALL"), match it
-                  EXACTLY using `df['Store_Name_Clean'] == 'HOB LUCKY 1 MALL'`. Do NOT use `.contains()`
-                  for a specific store name, because similar-sounding stores/kiosks (e.g. "LUCKY 1
-                  (KIOSK)") are separate locations and must not be mixed together.
-                - Only use `.contains(...)` style partial matching when the user's request is broad or
-                  clearly asks to include multiple related stores.
-                - 'Transact_Date' is already a proper date column.
+                IMPORTANT RULES FOR WRITING CODE:
+                - Return ONLY a Python code block using ```python ... ``` with no extra text or explanations.
+                - Store your final answer in a variable named `result`.
+                - For rankings or "top N" questions (e.g., top 5 stores, top 5 categories), `result` MUST be a pandas DataFrame or Series (e.g., using `.groupby().sum().reset_index().nlargest(...)`).
+                - For product categories, use the column `Art_Grp_Descr`. For quantities/pieces sold, use the column `Quantity`.
+                - For scalar questions (totals, counts), `result` should be a single number (`int` or `float`).
+                - Always use `Store_Name_Clean` instead of `Store_Name` when filtering stores.
+                - `Net_Sale` is the revenue column.
+                - Note that `Transact_Date` is already converted using `pd.to_datetime(..., dayfirst=True)`.
 
                 Sample data rows:
-                {df[['Transact_Date', 'Store_Name', 'Net_Sale', 'Quantity']].head(3).to_string()}
+                {df[['Transact_Date', 'Store_Name', 'Art_Grp_Descr', 'Net_Sale', 'Quantity']].head(3).to_string()}
 
                 User's question: "{user_query}"
-
-                Write clean, executable Python code using pandas on `df` to answer this question.
-                Store the final answer (a number, a short table, or a short piece of text) in a variable
-                named `result`. Keep any numeric result as a plain number (no currency symbols or commas
-                inside it) — formatting for display is handled separately.
-                Return ONLY a Python code block inside ```python ... ``` with no extra explanation.
                 """
 
                 response = client.models.generate_content(
-                    model='gemini-3.5-flash',
+                    model='gemini-2.5-flash',
                     contents=prompt
                 )
 
@@ -456,8 +433,6 @@ if user_query:
                         "content": display_df.to_markdown() if hasattr(display_df, "to_markdown") else str(display_df),
                     })
                 elif isinstance(result, (int, float)):
-                    # Money-related results tend to be floats (Net_Sale, Gross_Amount, etc.)
-                    # while simple counts (quantity, number of bills/stores) are ints.
                     if isinstance(result, float):
                         formatted = f"Rs {result:,.0f}"
                     else:
