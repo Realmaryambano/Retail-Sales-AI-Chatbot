@@ -17,7 +17,7 @@ Under the hood, natural-language questions are converted into pandas code by an 
 
 ## 📸 Screenshot
 
-![Dashboard Screenshot](https://via.placeholder.com/1200x700.png?text=Dashboard+Screenshot+Coming+Soon)
+![Dashboard Screenshot](/dashboard.png)
 
 ---
 
