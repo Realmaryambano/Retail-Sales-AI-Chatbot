@@ -174,7 +174,7 @@ In the sidebar, paste your Gemini API key and click **Turn On Assistant →**. O
 **Maryam Bano**
 
 - 📧 Email: [maryambano.official@gmail.com](mailto:maryambano.official@gmail.com)
-- 💻 GitHub: [github.com/Realmaryambano](https://github.com/Realmaryambano/gift-voucher-report-generation-system)
+- 💻 GitHub: [github.com/Realmaryambano](https://github.com/Realmaryambano/Retail-Sales-AI-Chatbot)
 - 🔗 LinkedIn: [linkedin.com/in/realmaryambano](https://www.linkedin.com/in/realmaryambano/)
 
 ## 📜 License
