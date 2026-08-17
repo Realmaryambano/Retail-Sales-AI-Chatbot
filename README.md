@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/badge/License-Proprietary-red)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 
-**🔗 Live Demo:** [your-live-demo-link-here](https://your-live-demo-link-here.streamlit.app)
+**🔗 Live Demo:** no live demo yet
 
 An AI-powered Streamlit dashboard that lets non-technical store/retail staff ask plain-English questions about sales data (across multiple Bonanza Satrangi stores) and get instant answers — totals, top stores, best-selling categories, day-wise sales, and more — without writing a single line of SQL or Excel formula.
 
